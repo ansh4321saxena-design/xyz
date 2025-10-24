@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ShopWave — Stylish Mini E-commerce</title>
+
+  <!-- Tailwind Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind theme customizations (colors, fonts)
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff9f0',
+              100: '#fff1e0',
+              300: '#ffb86b',
+              500: '#ff9900',
+              700: '#cc7400'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui']
+          },
+          boxShadow: {
+            'soft-lg': '0 10px 30px rgba(2,6,23,0.12)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Simple favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛍️</text></svg>">
+
+  <style>
+    /* tiny extra styles */
+    .glass { background: rgba(255,255,255,0.55); backdrop-filter: blur(6px); }
+    .card-hover:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 12px 30px rgba(2,6,23,0.08); }
+    .fade-in { animation: fadeIn .28s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity:1; transform:none } }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen text-slate-800 font-sans">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 glass border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center gap-4 py-3">
+        <a href="#/" class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-md bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold shadow-md">SW</div>
+          <div>
+            <div class="text-lg font-extrabold leading-4">ShopWave</div>
+            <div class="text-xs text-slate-500 -mt-0.5">Stylish demo store</div>
+          </div>
+        </a>
+
+        <!-- Search -->
+        <div class="flex-1">
+          <div class="relative max-w-2xl mx-auto">
+            <input id="globalSearch" type="search" placeholder="Search products, e.g. headphones, smartwatch..." class="w-full rounded-full border border-slate-200 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-brand-300 transition" />
+            <svg class="w-5 h-5 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+          </div>
+        </div>
+
+        <!-- Icons -->
+        <nav class="flex items-center gap-4">
+          <a class="hidden sm:inline-flex items-center text-sm text-slate-600 hover:text-slate-800" href="#/">Categories</a>
+          <a id="cartBtn" href="#/cart" class="relative inline-flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-50 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 6M7 13l-2 7h14l-2-7M10 21a1 1 0 11-2 0 1 1 0 012 0zm8 0a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+            <span class="text-sm font-medium" id="cartCount">0</span>
+          </a>
+          <a class="hidden md:inline-flex items-center px-3 py-2 rounded-md bg-brand-500 text-white text-sm hover:brightness-95 transition" href="#/checkout">Checkout</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main container (router injects into #app) -->
+  <main id="app" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"></main>
+
+  <!-- Footer -->
+  <footer class="mt-12 text-sm text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-t border-slate-200">
+      <div class="flex flex-col md:flex-row justify-between gap-4">
+        <div>© <strong>ShopWave</strong> 2025 — Demo. No real checkout or payments.</div>
+        <div>Help · Terms · Privacy</div>
+      </div>  
+    </div>
+  </footer>
+
+  <!-- App Script: data, router, rendering, cart -->
+  <script>
+    /************************************************************************
+     * Minimal SPA router + store (single file) - safe, modern, and stylish
+     * - Hash-based routes: #/  #/product/{id}  #/cart  #/checkout
+     * - Products array below can be extended
+     ************************************************************************/
+
+    // ---------- Sample products ----------
+    const PRODUCTS = [
+      { id: 'p1', title: 'FlexNoise Wireless Headphones', price: 4299, rating: 4.4, reviews: 4512, category: 'Audio', images: ['https://images.unsplash.com/photo-1518444029272-03c5d0a3ca9b?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=1c0f1b4f9b2b0a2ad8a2f981e8a6e8d6'], desc: 'Comfort-fit, 40-hour battery, adaptive noise-canceling.' },
+      { id: 'p2', title: 'SleekPhone X — 128GB', price: 19999, rating: 4.8, reviews: 2120, category: 'Mobiles', images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=4c7e2d8c6b2a9c5ef1a2d7c5e8b3f4db'], desc: 'Flagship performance, dual camera, long-lasting battery.' },
+      { id: 'p3', title: 'UltraView 43" 4K Smart TV', price: 24999, rating: 4.3, reviews: 3890, category: 'TV & Home', images: ['https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=3cb2f6391c3e1df2f6b0f9c8b7aa0b2e'], desc: 'Cinematic view, HDR10, smart apps built-in.' },
+      { id: 'p4', title: 'BoomBox Portable Speaker', price: 2199, rating: 4.2, reviews: 1210, category: 'Audio', images: ['https://images.unsplash.com/photo-1585386959984-a4155229676a?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=ef9a6f3b6c9d7b1c1a9a9c1a9d8b9f7e'], desc: 'Compact, loud, IPX5 splash-proof.' },
+      { id: 'p5', title: 'AirFry Pro 5L', price: 6499, rating: 3.9, reviews: 810, category: 'Kitchen', images: ['https://images.unsplash.com/photo-1586201375761-83865001eaf8?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=2b7e7c3b5a4f4d8c9e3f2a2b1c0d0a9b'], desc: 'Healthy frying with preset modes and 2-year warranty.' },
+      { id: 'p6', title: 'FitTrack Smartwatch', price: 3299, rating: 4.6, reviews: 4012, category: 'Wearables', images: ['https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=8c1f7a6f8e1b4a8f3c6d7b9a2a1e2d3f'], desc: 'Heart & sleep monitor, notifications & 7-day battery.' }
+    ];
+
+    // ---------- Utilities ----------
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    function money(n){ return '₹' + n.toLocaleString('en-IN'); }
+    function starStr(r){ return '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r)); }
+
+    // ---------- Cart store (localStorage) ----------
+    const CART_KEY = 'shopwave_cart_v1';
+    function loadCart(){ try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch(e){ return []; } }
+    function saveCart(cart){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartBadge(); }
+    function findInCart(id){ return loadCart().find(i=>i.id===id); }
+    function addToCart(id, qty = 1){
+      const cart = loadCart();
+      const existing = cart.find(i=>i.id===id);
+      if(existing){ existing.qty += qty; }
+      else { cart.push({ id, qty }); }
+      saveCart(cart);
+    }
+  
+    function updateQty(id, qty){
+      let cart = loadCart();
+      cart = cart.map(i => i.id===id ? { ...i, qty: Math.max(0, qty) } : i ).filter(i=>i.qty>0);
+      saveCart(cart);
+    }
+    function removeFromCart(id){
+      let cart = loadCart().filter(i=>i.id!==id);
+      saveCart(cart);
+    }
+    function cartCount(){ return loadCart().reduce((s,i)=>s+i.qty,0); }
+    function cartDetails(){
+      const cart = loadCart();
+      return cart.map(ci => {
+        const p = PRODUCTS.find(x => x.id === ci.id);
+        return { ...p, qty: ci.qty, subtotal: p.price * ci.qty };
+      });
+    }
+    function cartTotal(){ return cartDetails().reduce((s,i)=>s+i.subtotal,0); }
+    function updateCartBadge(){ const el = $('#cartCount'); if(el) el.textContent = cartCount(); }
+
+    // ---------- Router ----------
+    function router(){
+      const hash = location.hash || '#/';
+      const app = $('#app');
+      // simple parse
+      if(/^#\/product\/([^\/]+)/.test(hash)){
+        const id = hash.split('/')[2];
+        renderProductPage(id);
+      } else if(hash.startsWith('#/cart')){
+        renderCartPage();
+      } else if(hash.startsWith('#/checkout')){
+        renderCheckoutPage();
+      } else {
+        renderHomePage();
+      }
+    }
+
+    // ---------- Renderers ----------
+    function renderHomePage(){
+      const app = $('#app');
+      app.innerHTML = '';
+      // Hero
+      app.insertAdjacentHTML('beforeend', `
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mb-8 fade-in">
+          <div class="lg:col-span-2 bg-white rounded-xl p-6 shadow-soft-lg">
+            <div class="flex flex-col lg:flex-row gap-6 items-center">
+              <div class="flex-1">
+                <h1 class="text-3xl font-extrabold">Discover deals and curated picks</h1>
+                <p class="text-slate-600 mt-2">Hand-picked electronics, home essentials and stylish wearables.</p>
+                <div class="mt-4 flex gap-3">
+                  <a href="#/product/p1" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500 text-white font-medium shadow">Shop Best Seller</a>
+                  <a href="#/cart" class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 text-slate-700">View Cart</a>
+                </div>
+              </div>
+              <div class="w-full sm:w-80 rounded-lg overflow-hidden shadow">
+                <img src="https://images.unsplash.com/photo-1518444029272-03c5d0a3ca9b?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=1c0f1b4f9b2b0a2ad8a2f981e8a6e8d6"
+                     alt="Deal" class="w-full h-48 object-cover"/>
+              </div>
+            </div>
+            <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div class="p-3 rounded-lg bg-gradient-to-b from-brand-50 to-white border border-slate-100">
+                <div class="text-xs text-slate-500">Free delivery</div>
+                <div class="text-sm font-semibold mt-1">Across India</div>
+              </div>
+              <div class="p-3 rounded-lg bg-white border border-slate-100">
+                <div class="text-xs text-slate-500">Support</div>
+                <div class="text-sm font-semibold mt-1">24/7</div>
+              </div>
+              <div class="p-3 rounded-lg bg-white border border-slate-100">
+                <div class="text-xs text-slate-500">Warranty</div>
+                <div class="text-sm font-semibold mt-1">Selected items</div>
+              </div>
+              <div class="p-3 rounded-lg bg-white border border-slate-100">
+                <div class="text-xs text-slate-500">No-cost EMI</div>
+                <div class="text-sm font-semibold mt-1">On select cards</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sidebar card -->
+          <aside class="bg-white rounded-xl p-6 shadow-soft-lg">
+            <h3 class="font-bold">Your cart</h3>
+            <p class="text-sm text-slate-500 mt-1">Quick view of items in your cart</p>
+            <div id="miniCart" class="mt-4 space-y-3">
+              <!-- mini cart items will be injected -->
+            </div>
+            <div class="mt-4 flex gap-2">
+              <a href="#/cart" class="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-brand-500 text-white">Open cart</a>
+              <a href="#/checkout" class="inline-flex items-center justify-center px-4 py-2 rounded-lg border">Checkout</a>
+            </div>
+          </aside>
+        </section>
+      `);
+
+      // Categories & products grid
+      const categories = [...new Set(PRODUCTS.map(p=>p.category))];
+      app.insertAdjacentHTML('beforeend', `
+        <section class="mb-6">
+          <h2 class="text-xl font-bold mb-3">Explore categories</h2>
+          <div class="flex gap-3 overflow-auto pb-2">
+            ${categories.map(c=>`<button class="py-2 px-4 rounded-full border text-sm bg-white/80 hover:bg-brand-50 transition category-btn" data-cat="${c}">${c}</button>`).join('')}
+          </div>
+        </section>
+      `);
+
+      // Products
+      app.insertAdjacentHTML('beforeend', `<section><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="productGrid"></div></section>`);
+
+      // inject products
+      const grid = $('#productGrid');
+      PRODUCTS.forEach(p => {
+        grid.insertAdjacentHTML('beforeend', `
+          <article class="bg-white rounded-2xl overflow-hidden border border-slate-100 p-4 transform transition card-hover fade-in">
+            <a href="#/product/${p.id}" class="block w-full h-44 overflow-hidden rounded-xl bg-slate-50">
+              <img loading="lazy" src="${p.images[0]}" alt="${p.title}" class="w-full h-full object-cover"/>
+            </a>
+            <div class="mt-3">
+              <div class="text-xs text-slate-400">${p.category}</div>
+              <a href="#/product/${p.id}" class="text-sm font-semibold mt-1 block">${p.title}</a>
+              <div class="mt-2 flex items-center justify-between">
+                <div>
+                  <div class="text-lg font-bold">${money(p.price)}</div>
+                  <div class="text-xs text-slate-500">${starStr(p.rating)} <span class="text-slate-400">(${p.reviews})</span></div>
+                </div>
+                <div>
+                  <button data-id="${p.id}" class="addSmall inline-flex items-center px-3 py-2 rounded-md bg-brand-500 text-white text-sm">Add</button>
+                </div>
+              </div>
+            </div>
+          </article>
+        `);
+      });
+
+      // mini cart
+      renderMiniCart();
+
+      // interactions
+      $$('.addSmall').forEach(btn => btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        addToCart(id, 1);
+        e.currentTarget.textContent = 'Added ✓';
+        e.currentTarget.disabled = true;
+        setTimeout(()=>{ e.currentTarget.textContent = 'Add'; e.currentTarget.disabled = false; }, 900);
+      }));
+
+      // category filter
+      $$('.category-btn').forEach(b => b.addEventListener('click', (e) => {
+        const cat = e.currentTarget.dataset.cat;
+        // filter grid
+        $('#productGrid').innerHTML = '';
+        const filtered = PRODUCTS.filter(x => x.category === cat);
+        filtered.forEach(p => {
+          $('#productGrid').insertAdjacentHTML('beforeend', `
+            <article class="bg-white rounded-2xl overflow-hidden border border-slate-100 p-4 transform transition card-hover fade-in">
+              <a href="#/product/${p.id}" class="block w-full h-44 overflow-hidden rounded-xl bg-slate-50">
+                <img loading="lazy" src="${p.images[0]}" alt="${p.title}" class="w-full h-full object-cover"/>
+              </a>
+              <div class="mt-3">
+                <div class="text-xs text-slate-400">${p.category}</div>
+                <a href="#/product/${p.id}" class="text-sm font-semibold mt-1 block">${p.title}</a>
+                <div class="mt-2 flex items-center justify-between">
+                  <div>
+                    <div class="text-lg font-bold">${money(p.price)}</div>
+                    <div class="text-xs text-slate-500">${starStr(p.rating)} <span class="text-slate-400">(${p.reviews})</span></div>
+                  </div>
+                  <div>
+                    <button data-id="${p.id}" class="addSmall inline-flex items-center px-3 py-2 rounded-md bg-brand-500 text-white text-sm">Add</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          `);
+        });
+        // rebind add buttons
+        $$('.addSmall').forEach(btn => btn.addEventListener('click', (e) => {
+          const id = e.currentTarget.dataset.id;
+          addToCart(id, 1);
+          e.currentTarget.textContent = 'Added ✓';
+          e.currentTarget.disabled = true;
+          setTimeout(()=>{ e.currentTarget.textContent = 'Add'; e.currentTarget.disabled = false; }, 900);
+        }));
+      }));
+    }
+
+    function renderMiniCart(){
+      const mini = $('#miniCart');
+      if(!mini) return;
+      const list = cartDetails();
+      if(list.length === 0){
+        mini.innerHTML = `<div class="text-sm text-slate-500">Your cart is empty</div>`;
+      } else {
+        mini.innerHTML = list.map(it => `
+          <div class="flex items-center gap-3">
+            <img src="${it.images[0]}" alt="" class="w-12 h-12 object-cover rounded-md"/>
+            <div class="flex-1">
+              <div class="text-sm font-medium">${it.title}</div>
+              <div class="text-xs text-slate-400">${it.qty} × ${money(it.price)}</div>
+            </div>
+            <div class="text-sm font-semibold">${money(it.subtotal)}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function renderProductPage(id){
+      const p = PRODUCTS.find(x => x.id === id);
+      const app = $('#app');
+      if(!p){
+        app.innerHTML = '<div class="py-12 text-center">Product not found</div>';
+        return;
+      }
+      app.innerHTML = `
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in">
+          <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-soft-lg">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="rounded-xl overflow-hidden border border-slate-100">
+                <img src="${p.images[0]}" alt="${p.title}" class="w-full h-96 object-cover"/>
+              </div>
+              <div class="px-2">
+                <h1 class="text-2xl font-extrabold">${p.title}</h1>
+                <div class="mt-2 text-slate-600">${p.desc}</div>
+                <div class="mt-4 flex items-center gap-4">
+                  <div class="text-2xl font-bold">${money(p.price)}</div>
+                  <div class="text-sm text-slate-500">${starStr(p.rating)} <span class="text-slate-400">(${p.reviews})</span></div>
+                </div>
+                <div class="mt-6 flex gap-3 items-center">
+                  <label class="flex items-center gap-2">Qty
+                    <select id="qtySelect" class="ml-2 border rounded px-2 py-1">
+                      <option>1</option><option>2</option><option>3</option><option>4</option>
+                    </select>
+                  </label>
+                  <button id="addProduct" class="px-5 py-3 rounded-lg bg-brand-500 text-white font-semibold">Add to Cart</button>
+                  <button id="buyNow" class="px-4 py-3 rounded-lg border">Buy Now</button>
+                </div>
+
+                <div class="mt-6">
+                  <h3 class="font-semibold">Highlights</h3>
+                  <ul class="list-disc ml-5 mt-2 text-sm text-slate-600">
+                    <li>High-quality materials</li>
+                    <li>Free delivery on orders above ₹999</li>
+                    <li>30-day returns</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-8">
+              <h3 class="text-lg font-bold">More from this category</h3>
+              <div id="related" class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+            </div>
+          </div>
+
+          <aside class="bg-white rounded-2xl p-6 shadow-soft-lg">
+            <div class="text-slate-500">Seller: <span class="text-slate-800 font-medium">ShopWave Official</span></div>
+            <div class="mt-4 text-slate-700">
+              <div class="flex items-center justify-between"><div>Delivery</div><div class="font-semibold">2–4 days</div></div>
+              <div class="flex items-center justify-between mt-2"><div>Warranty</div><div class="font-semibold">1 year</div></div>
+            </div>
+            <div class="mt-6">
+              <div class="text-xs text-slate-400">Subtotal</div>
+              <div class="text-xl font-bold">${money(p.price)}</div>
+              <div class="mt-4">
+                <button id="addSide" class="w-full px-4 py-3 rounded-lg bg-brand-500 text-white font-semibold">Add to Cart</button>
+              </div>
+            </div>
+          </aside>
+        </section>
+      `;
+
+      // related
+      const relatedEl = $('#related');
+      const related = PRODUCTS.filter(x=>x.category===p.category && x.id!==p.id).slice(0,4);
+      related.forEach(r => {
+        relatedEl.insertAdjacentHTML('beforeend', `
+          <a href="#/product/${r.id}" class="block bg-slate-50 rounded-lg p-2 text-center hover:bg-white transition">
+            <img src="${r.images[0]}" alt="${r.title}" class="w-full h-28 object-cover rounded"/>
+            <div class="text-sm font-medium mt-2">${r.title}</div>
+            <div class="text-sm text-slate-500">${money(r.price)}</div>
+          </a>
+        `);
+      });
+
+      // handlers
+      $('#addProduct').addEventListener('click', () => {
+        const qty = parseInt($('#qtySelect').value, 10) || 1;
+        addToCart(p.id, qty);
+        showToast('Added to cart');
+      });
+      $('#addSide').addEventListener('click', () => { addToCart(p.id, 1); showToast('Added to cart'); });
+      $('#buyNow').addEventListener('click', () => { addToCart(p.id, parseInt($('#qtySelect').value,10)||1); location.hash = '#/checkout'; });
+    }
+
+    function renderCartPage(){
+      const app = $('#app');
+      const items = cartDetails();
+      app.innerHTML = `
+        <section class="bg-white rounded-2xl p-6 shadow-soft-lg fade-in">
+          <h2 class="text-2xl font-bold">Your cart</h2>
+          ${items.length === 0 ? `<div class="mt-6 text-slate-500">Your cart is empty — <a href="#/" class="text-brand-500">Continue shopping</a></div>` : `
+            <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-2 space-y-4">
+                ${items.map(it => `
+                  <div class="flex gap-4 items-center p-3 rounded-lg border border-slate-100">
+                    <img src="${it.images[0]}" alt="${it.title}" class="w-28 h-20 object-cover rounded"/>
+                    <div class="flex-1">
+                      <div class="font-semibold">${it.title}</div>
+                      <div class="text-sm text-slate-500 mt-1">${money(it.price)} • ${starStr(it.rating)} (${it.reviews})</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button data-id="${it.id}" class="decrease px-3 py-1 rounded border">-</button>
+                      <div class="px-3">${it.qty}</div>
+                      <button data-id="${it.id}" class="increase px-3 py-1 rounded border">+</button>
+                    </div>
+                    <div class="text-right">
+                      <div class="font-semibold">${money(it.subtotal)}</div>
+                      <button data-id="${it.id}" class="mt-2 text-sm text-red-500 remove">Remove</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <aside class="bg-slate-50 p-4 rounded-lg">
+                <div class="text-slate-500">Order summary</div>
+                <div class="mt-4 flex items-center justify-between"><div>Items</div><div class="font-semibold">${items.reduce((s,i)=>s+i.qty,0)}</div></div>
+                <div class="mt-2 flex items-center justify-between"><div>Subtotal</div><div class="font-semibold">${money(cartTotal())}</div></div>
+                <div class="mt-4">
+                  <button id="checkoutNow" class="w-full px-4 py-3 rounded-lg bg-brand-500 text-white font-semibold">Proceed to Checkout</button>
+                </div>
+                <div class="mt-2 text-xs text-slate-400">Shipping & taxes calculated at checkout</div>
+              </aside>
+            </div>
+          `}
+        </section>
+      `;
+
+      // bindings
+      $$('.increase').forEach(b => b.addEventListener('click', e => {
+        const id = e.currentTarget.dataset.id;
+        const cur = findInCart(id);
+        if(cur){ updateQty(id, cur.qty + 1); renderCartPage(); renderMiniCart(); }
+      }));
+      $$('.decrease').forEach(b => b.addEventListener('click', e => {
+        const id = e.currentTarget.dataset.id;
+        const cur = findInCart(id);
+        if(cur){ updateQty(id, cur.qty - 1); renderCartPage(); renderMiniCart(); }
+      }));
+      $$('.remove').forEach(b => b.addEventListener('click', e => {
+        const id = e.currentTarget.dataset.id;
+        removeFromCart(id); renderCartPage(); renderMiniCart();
+      }));
+      $('#checkoutNow')?.addEventListener('click', ()=> location.hash = '#/checkout');
+    }
+
+    function renderCheckoutPage(){
+      const app = $('#app');
+      const total = cartTotal();
+      app.innerHTML = `
+        <section class="bg-white rounded-2xl p-6 shadow-soft-lg fade-in max-w-3xl mx-auto">
+          <h2 class="text-2xl font-bold">Checkout</h2>
+          <div class="mt-4 text-slate-600">This is a demo checkout — payments are not enabled.</div>
+
+          <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium">Full name</label>
+              <input class="mt-1 block w-full rounded-md border px-3 py-2" placeholder="Your name"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Phone / Email</label>
+              <input class="mt-1 block w-full rounded-md border px-3 py-2" placeholder="you@example.com"/>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <label class="block text-sm font-medium">Address</label>
+            <textarea class="mt-1 block w-full rounded-md border px-3 py-2" rows="3" placeholder="Street, city, pincode"></textarea>
+          </div>
+
+          <div class="mt-6 flex items-center justify-between">
+            <div class="text-sm text-slate-500">Total</div>
+            <div class="text-2xl font-bold">${money(total)}</div>
+          </div>
+
+          <div class="mt-4 flex gap-3">
+            <button id="placeOrder" class="px-5 py-3 rounded-lg bg-brand-500 text-white font-semibold">Place order</button>
+            <a href="#/" class="px-4 py-3 rounded-lg border">Continue shopping</a>
+          </div>
+        </section>
+      `;
+      $('#placeOrder').addEventListener('click', () => {
+        // clear cart for demo
+        saveCart([]);
+        updateCartBadge();
+        showToast('Order placed — demo only ✔️');
+        setTimeout(()=> location.hash = '#/', 900);
+      });
+    }
+
+    // tiny toast
+    function showToast(msg){
+      const t = document.createElement('div');
+      t.className = 'fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(()=> t.style.opacity = '0', 1600);
+      setTimeout(()=> t.remove(), 2000);
+    }
+
+    // search handler
+    $('#globalSearch').addEventListener('keypress', (e) => {
+      if(e.key === 'Enter'){
+        const q = e.target.value.trim().toLowerCase();
+        if(!q) return;
+        // find first product whose title includes query
+        const found = PRODUCTS.find(p => p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+        if(found) location.hash = '#/product/' + found.id;
+        else showToast('No product found');
+      }
+    });
+
+    // update badge on load
+    updateCartBadge();
+
+    // listen to hash changes
+    window.addEventListener('hashchange', () => { router(); updateCartBadge(); renderMiniCart(); });
+    // initial route
+    router();
+
+    // update cart badge periodically (in case of external changes)
+    setInterval(updateCartBadge, 700);
+
+    // allow adding from grid quickly: delegate
+    document.addEventListener('click', (e) => {
+      if(e.target.matches('.addSmall')){
+        const id = e.target.dataset.id;
+        addToCart(id, 1);
+        e.target.textContent = 'Added ✓';
+        setTimeout(()=> e.target.textContent = 'Add', 800);
+        renderMiniCart();
+      }
+    });
+
+  </script>
+</body>
+</html>
